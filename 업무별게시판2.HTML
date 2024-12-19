@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>업무별관리</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        #tab-container {
+            display: flex;
+            background-color: #ddd;
+            padding: 5px;
+        }
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: 1px solid #ccc;
+            border-bottom: none;
+            margin-right: 5px;
+            border-radius: 5px 5px 0 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .tab.active {
+            background-color: #fff;
+            font-weight: bold;
+        }
+        .delete-btn {
+            margin-left: 10px;
+            cursor: pointer;
+            color: red;
+            font-size: 14px;
+        }
+        #editor {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            outline: none;
+            overflow-y: auto;
+        }
+        #controls {
+            margin: 10px;
+        }
+        #controls input {
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <button onclick="addCategory()">카테고리 추가</button>
+        <label>텍스트 색상: <input type="color" id="textColor" onchange="changeTextColor()"></label>
+    </div>
+    <div id="tab-container"></div>
+    <div id="editor" contenteditable="true"></div>
+
+    <script>
+        let categories = JSON.parse(localStorage.getItem('categories')) || [];
+        let activeCategory = null;
+
+        const tabContainer = document.getElementById('tab-container');
+        const editor = document.getElementById('editor');
+
+        // 무지개색 일반톤 배열
+        const standardColors = [
+            "#FF6666", // 빨강
+            "#FF9966", // 주황
+            "#FFCC66", // 노랑
+            "#99CC66", // 초록
+            "#66CCCC", // 청록
+            "#6699FF", // 파랑
+            "#9966CC"  // 보라
+        ];
+        let colorIndex = 0;
+
+        function getNextColor() {
+            const color = standardColors[colorIndex];
+            colorIndex = (colorIndex + 1) % standardColors.length;
+            return color;
+        }
+
+        function renderTabs() {
+            tabContainer.innerHTML = '';
+            categories.forEach((category, index) => {
+                // 색상을 다시 설정
+                if (!category.color) {
+                    category.color = getNextColor();
+                }
+
+                const tab = document.createElement('div');
+                tab.className = 'tab';
+                tab.style.backgroundColor = category.color;
+                tab.innerHTML = `${category.name} <span class='delete-btn' onclick='deleteCategory(${index}, event)'>X</span>`;
+                tab.onclick = (e) => {
+                    if (!e.target.classList.contains('delete-btn')) setActiveCategory(index);
+                };
+                if (index === activeCategory) tab.classList.add('active');
+                tabContainer.appendChild(tab);
+            });
+        }
+
+        function setActiveCategory(index) {
+            activeCategory = index;
+            localStorage.setItem('activeCategory', index);
+            editor.innerHTML = categories[index].content;
+            editor.style.color = categories[index].textColor || '#000';
+            renderTabs();
+        }
+
+        function addCategory() {
+            const name = prompt('카테고리 이름을 입력하세요:');
+            if (name) {
+                const color = getNextColor(); // 무지개 일반톤 색상 순환
+                categories.push({ name, color, content: '', textColor: '#000' });
+                saveAndRender();
+                setActiveCategory(categories.length - 1);
+            }
+        }
+
+        function deleteCategory(index, event) {
+            event.stopPropagation();
+            if (confirm(`'${categories[index].name}' 카테고리를 삭제하시겠습니까?`)) {
+                categories.splice(index, 1);
+                if (activeCategory === index) activeCategory = null;
+                saveAndRender();
+                if (categories.length > 0) setActiveCategory(0);
+                else editor.innerHTML = '';
+            }
+        }
+
+        function saveAndRender() {
+            localStorage.setItem('categories', JSON.stringify(categories));
+            renderTabs();
+        }
+
+        function changeTextColor() {
+            const color = document.getElementById('textColor').value;
+            editor.style.color = color;
+            if (activeCategory !== null) {
+                categories[activeCategory].textColor = color;
+                saveAndRender();
+            }
+        }
+
+        editor.addEventListener('input', () => {
+            if (activeCategory !== null) {
+                categories[activeCategory].content = editor.innerHTML;
+                saveAndRender();
+            }
+        });
+
+        function loadInitialData() {
+            if (categories.length > 0) {
+                activeCategory = parseInt(localStorage.getItem('activeCategory')) || 0;
+                setActiveCategory(activeCategory);
+            }
+        }
+
+        loadInitialData();
+        renderTabs();
+    </script>
+</body>
+</html>
